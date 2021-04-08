@@ -13,8 +13,12 @@ typedef struct Connection
 typedef struct Node
 {
     long id;
+    
     short isDead;
     short isContaminated;
+    short hasAnosia;
+    short daysRecovering;
+    
     long connections;
     Connection *connectionsHead;
 } Node;
@@ -25,30 +29,6 @@ typedef struct Graph
     long currSize;
     Node *nodes;
 } Graph;
-
-long Graph_binarySearch(Node *nodes, long start, long size, long id)
-{
-    int mid;
-
-    if (size >= 1)
-    {
-        mid = start + (size - 1) / 2;
-
-        if (nodes[mid].id == id)
-        {
-            return mid;
-        }
-
-        if (nodes[mid].id > id)
-        {
-            return Graph_binarySearch(nodes, start, mid - 1, id);
-        }
-
-        return Graph_binarySearch(nodes, mid + 1, size, id);
-    }
-
-    return -1;
-}
 
 Graph *Graph_init(unsigned int size)
 {
@@ -126,6 +106,25 @@ Connection *Graph_initConn(Node *nodes, long indexFrom, long indexTo)
     return conn;
 }
 
+int Graph_setContaminated(Graph *g, long ID)
+{
+    Node *nodes;
+    int i;
+
+    assert(g);
+
+    nodes = g->nodes;
+
+    for(i=0; i< g->currSize; i++){
+        if(nodes[i].id == ID){
+            nodes[i].isContaminated = 1;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 Node *Graph_addConnection(Graph *g, long ID1, long ID2)
 {
     long indexID1 = -1, indexID2 = -1, i;
@@ -190,8 +189,10 @@ void Graph_print(Graph *g)
     nodes = g->nodes;
 
     for (i = 0; i < g->currSize; i++)
-    {
-        printf("#%ld [id %ld] [conns %ld]\n", i, nodes[i].id, nodes[i].connections);
+    {        
+        printf("Node #%ld:\n    ID: %ld\n    isContaminated: %d\n    Connections: %ld\n", 
+            i, nodes[i].id, nodes[i].isContaminated, nodes[i].connections);
+
         printf("    =>[ ");
         curr = nodes[i].connectionsHead;
         while (curr)

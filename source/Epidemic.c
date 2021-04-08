@@ -20,7 +20,7 @@ void readSeedFile(char *filename);
 void writeCSVFIle(char *filename);
 void epidemic();
 
-int isGoingToTransmit()
+int isGoingToContaminate()
 {
     int min = 0, max = 100, num;
 
@@ -48,6 +48,7 @@ int main()
     //printf("Tr: %d\n", isGoingToTransmit());
 
     readFile("../datasets/test1");
+    readSeedFile("../datasets/test_seed");
 
     Graph_print(g);
 
@@ -108,7 +109,7 @@ void readSeedFile(char *filename)
 {
     FILE *stream;
     char line[LINE_SIZE], *tok;
-    long from, to, size = 0, edges = 0, counter = 0;
+    long patientID;
 
     if (!(stream = fopen(filename, "r+")))
     {
@@ -124,14 +125,62 @@ void readSeedFile(char *filename)
         }
 
         tok = strtok(line, "\r \t\v");
-        from = atol(tok);
+        patientID = atol(tok);
 
+        Graph_setContaminated(g, patientID);
     }
-
 
     fclose(stream);
 }
 
 void writeCSVFIle(char *filename)
 {
+}
+
+void epidemic()
+{
+    int i, j;
+    Node *nodes;
+    Connection *conn;
+
+    nodes = g->nodes;
+
+    for (i = 0; i < DAYS; i++)
+    {
+        //phase 1
+        for (j = 0; j < g->currSize; j++)
+        {
+            if (nodes[j].isDead)
+            {
+                continue;
+            }
+
+            if (nodes[j].isContaminated)
+            {
+                conn = nodes[j].connectionsHead;
+                while (conn)
+                {
+                    if (isGoingToContaminate() && !nodes[conn->indexTo].isContaminated && !nodes[conn->indexTo].hasAnosia)
+                    {
+                        nodes[conn->indexTo].isContaminated = 1;
+                    }
+                    conn = conn->next;
+                }
+
+                if (isGoingToDie(nodes[j].daysRecovering))
+                {
+                    nodes[j].isDead = 1;
+                }
+                else{
+                    nodes[j].daysRecovering++;
+                }
+            }
+        }
+
+        //phase 2
+        for (j = 0; j < g->currSize; j++)
+        {
+            
+        }
+    }
 }
