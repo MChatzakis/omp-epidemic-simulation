@@ -190,8 +190,8 @@ void Graph_print(Graph *g)
 
     for (i = 0; i < g->currSize; i++)
     {        
-        printf("Node #%ld:\n    ID: %ld\n    isContaminated: %d\n    Connections: %ld\n", 
-            i, nodes[i].id, nodes[i].isContaminated, nodes[i].connections);
+        printf("Node #%ld:\n    ID: %ld\n    isContaminated: %d\n    Connections: %ld\n    isDead: %d\n    hasAnosia: %d\n    daysRecovering: %d\n", 
+            i, nodes[i].id, nodes[i].isContaminated, nodes[i].connections, nodes[i].isDead, nodes[i].hasAnosia, nodes[i].daysRecovering);
 
         printf("    =>[ ");
         curr = nodes[i].connectionsHead;
