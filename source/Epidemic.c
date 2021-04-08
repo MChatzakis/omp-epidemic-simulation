@@ -106,7 +106,30 @@ void readFile(char *filename)
 
 void readSeedFile(char *filename)
 {
-    
+    FILE *stream;
+    char line[LINE_SIZE], *tok;
+    long from, to, size = 0, edges = 0, counter = 0;
+
+    if (!(stream = fopen(filename, "r+")))
+    {
+        perror("Could not open the file");
+        exit(EXIT_FAILURE);
+    }
+
+    while ((fgets(line, LINE_SIZE, stream)) != NULL)
+    {
+        if (line[0] == '#')
+        {
+            continue;
+        }
+
+        tok = strtok(line, "\r \t\v");
+        from = atol(tok);
+
+    }
+
+
+    fclose(stream);
 }
 
 void writeCSVFIle(char *filename)
