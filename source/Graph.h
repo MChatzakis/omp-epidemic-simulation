@@ -7,6 +7,7 @@
 typedef struct Connection
 {
     long indexTo; //index of the node!
+    short contaminates;
     struct Connection *next;
 } Connection;
 
@@ -91,6 +92,7 @@ Connection *Graph_initConn(Node *nodes, long indexFrom, long indexTo)
     }
 
     conn->indexTo = indexTo;
+    conn->contaminates = 0;
     conn->next = NULL;
 
     if (prev == NULL)

@@ -10,10 +10,11 @@
 
 #define LINE_SIZE 100
 
-int TRANSMISSION = 50; /* Transmission rate is 50% */
-int MORTALITY = 34;    /* Mortality rate is 34% */
-int DURATION = 10;     /* Virus infection duration is 10 days */
-int DAYS = 3;          /* Total days for simulation */
+double TRANSMISSION = 50; /* Transmission rate is 50% */
+double MORTALITY = 34;    /* Mortality rate is 34% */
+
+int DURATION = 4; /* Virus infection duration is 10 days */
+int DAYS = 10;    /* Total days for simulation */
 
 Graph *g; /* The graph is declared globally, as every function uses it */
 
@@ -84,8 +85,13 @@ int main(int argc, char **argv)
     }
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    epidemic(zeroPatients);
+    //epidemic(zeroPatients);
     clock_gettime(CLOCK_MONOTONIC, &finish);
+
+    for (int k = 0; k < 10; k++)
+    {
+        isGoingToContaminate();
+    }
 
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
@@ -194,56 +200,76 @@ void epidemic(long cases)
 
     for (i = 0; i < DAYS; i++)
     {
-        //phase 1
+        //phase1
         for (j = 0; j < g->currSize; j++)
         {
-            if (!nodes[j].isDead && nodes[j].isContaminated)
+            if (!nodes[j].isDead && !nodes[j].hasAnosia && !nodes[j].isContaminated)
             {
-                //printf("Contaminated, phase 1\n");
                 conn = nodes[j].connectionsHead;
                 while (conn)
                 {
-                    if (isGoingToContaminate() &&
-                        !nodes[conn->indexTo].isDead &&
-                        !nodes[conn->indexTo].isContaminated &&
-                        !nodes[conn->indexTo].hasAnosia)
+                    if (!nodes[conn->indexTo].isDead && nodes[conn->indexTo].isContaminated && isGoingToContaminate())
                     {
-                        printf("Node %ld got ill from node %ld!\n", nodes[conn->indexTo].id, nodes[j].id);
-                        nodes[conn->indexTo].isContaminated = 1; //crazy data race <3
-                        newCases++;
-                        totalCases++;
-                        active++;
+                        printf("Node %ld contaminates node %ld\n", nodes[conn->indexTo].id, nodes[j].id);
+                        conn->contaminates = 1;
                     }
-                    conn = conn->next;
-                }
 
-                if (isGoingToDie(nodes[j].daysRecovering))
-                {
-                    printf("Node %ld died!\n", nodes[j].id);
-                    nodes[j].isDead = 1;
-                    nodes[j].daysRecovering = 0;
-                    newDeaths++;
-                    totalDeaths++;
+                    conn = conn->next;
                 }
             }
         }
 
-        //phase 2
+        //phase2
         for (j = 0; j < g->currSize; j++)
         {
-            if (!nodes[j].isDead)
+            if (nodes[j].hasAnosia || nodes[j].isDead)
             {
-                if (nodes[j].isContaminated)
+                continue;
+            }
+
+            if (nodes[j].isContaminated)
+            {
+                if (isGoingToDie(nodes[j].daysRecovering))
+                {
+                    nodes[j].isDead = 1;
+                    totalDeaths++;
+                    newDeaths++;
+                    active--;
+                    printf("Node %ld died!\n", nodes[j].id);
+                }
+                else
                 {
                     nodes[j].daysRecovering++;
                     if (nodes[j].daysRecovering == DURATION)
                     {
-                        printf("Case got anosia!\n");
-                        nodes[j].hasAnosia = 1;
                         nodes[j].isContaminated = 0;
+                        nodes[j].hasAnosia = 1;
                         recovered++;
                         active--;
+                        printf("Node %ld got well!\n", nodes[j].id);
                     }
+                }
+            }
+            else
+            {
+                //find if it got contaminated today
+                conn = nodes[j].connectionsHead;
+                while (conn)
+                {
+                    if (conn->contaminates == 1)
+                    {
+                        nodes[j].isContaminated = 1;
+                    }
+
+                    conn->contaminates = 0;
+                    conn = conn->next;
+                }
+
+                if (nodes[j].isContaminated)
+                {
+                    newCases++;
+                    totalCases++;
+                    active++;
                 }
             }
         }
@@ -252,15 +278,22 @@ void epidemic(long cases)
         newCases = 0;
         newDeaths = 0;
     }
+
+    fprintf(stdout, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
 }
 
 int isGoingToContaminate()
 {
-    int min = 0, max = 100, num;
+    unsigned short xi[3] = {1, 5, 177};
+    int min = 0, max = 100;
+    double num;
 
-    srand(time(0));
-    num = (rand() % (max - min + 1)) + min;
-    //printf("isGoingToTransmit: Generated: %d\n", num);
+    //srand(getpid());
+    //num = (rand() % (max - min + 1)) + min;
+    //num = rand();
+    num = erand48(xi);
+
+    printf("isGoingToTransmit: Generated: %f\n", num);
 
     return num < TRANSMISSION;
 }
@@ -269,7 +302,7 @@ int isGoingToDie(int day)
 {
     int min = 0, max = 100, num;
 
-    srand(time(0));
+    srand(time(NULL));
     num = (rand() % (max - min + 1)) + min;
     //printf("isGoingToDIe: Generated: %d\n", num);
 
