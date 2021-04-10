@@ -292,7 +292,7 @@ int isGoingToContaminate()
 
     num = (rand() % (max - min + 1)) + min;
 
-    printf("isGoingToTransmit: Generated: %f\n", num);
+    printf("isGoingToTransmit: Generated:    %f\n", num);
 
     return num < TRANSMISSION;
 }
