@@ -87,14 +87,15 @@ int main(int argc, char **argv)
     srand(getpid());
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    epidemic(zeroPatients);
+    //epidemic(zeroPatients);
     clock_gettime(CLOCK_MONOTONIC, &finish);
 
 
-    /*for (int k = 0; k < 10; k++)
+    for (int k = 0; k < 10; k++)
     {
-        isGoingToContaminate();
-    }*/
+        isGoingToDie(k);
+        //isGoingToContaminate();
+    }
 
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
@@ -299,12 +300,11 @@ int isGoingToContaminate()
 
 int isGoingToDie(int day)
 {
-    int min = 0, max = 100;
+    double min = 0.0, max = 1.0;
     double num;
 
-    //srand(time(NULL));
-    num = (rand() % (max - min + 1)) + min;
-    //printf("isGoingToDIe: Generated: %d\n", num);
+    //num = (rand() % (max - min + 1)) + min;
+    printf("isGoingToDIe: Generated: %f < %f\n", num, (1 - pow(1 - (MORTALITY), day)));
 
     return num < (1 - pow(1 - MORTALITY, day));
 }
