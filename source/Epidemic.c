@@ -13,8 +13,8 @@
 double TRANSMISSION = 50; /* Transmission rate is 50% */
 double MORTALITY = 34;    /* Mortality rate is 34% */
 
-int DURATION = 4; /* Virus infection duration is 10 days */
-int DAYS = 10;    /* Total days for simulation */
+int DURATION = 10; /* Virus infection duration is 10 days */
+int DAYS = 30;    /* Total days for simulation */
 
 Graph *g; /* The graph is declared globally, as every function uses it */
 
@@ -83,15 +83,18 @@ int main(int argc, char **argv)
         printf("No input dataset/seed provided.\nRun using [-h] for help\n");
         return 0;
     }
+    
+    srand(getpid());
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    //epidemic(zeroPatients);
+    epidemic(zeroPatients);
     clock_gettime(CLOCK_MONOTONIC, &finish);
 
-    for (int k = 0; k < 10; k++)
+
+    /*for (int k = 0; k < 10; k++)
     {
         isGoingToContaminate();
-    }
+    }*/
 
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
@@ -284,14 +287,10 @@ void epidemic(long cases)
 
 int isGoingToContaminate()
 {
-    unsigned short xi[3] = {1, 5, 177};
     int min = 0, max = 100;
     double num;
 
-    //srand(getpid());
-    //num = (rand() % (max - min + 1)) + min;
-    //num = rand();
-    num = erand48(xi);
+    num = (rand() % (max - min + 1)) + min;
 
     printf("isGoingToTransmit: Generated: %f\n", num);
 
@@ -300,9 +299,10 @@ int isGoingToContaminate()
 
 int isGoingToDie(int day)
 {
-    int min = 0, max = 100, num;
+    int min = 0, max = 100;
+    double num;
 
-    srand(time(NULL));
+    //srand(time(NULL));
     num = (rand() % (max - min + 1)) + min;
     //printf("isGoingToDIe: Generated: %d\n", num);
 
