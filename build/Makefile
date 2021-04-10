@@ -14,3 +14,4 @@ gcc: $(EPID) $(GRAPH)
 clean:	
 	rm -f epidemic
 	rm -f simulation.csv
+	rm -f timeCalculations.txt

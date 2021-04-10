@@ -26,11 +26,10 @@ int main(int argc, char **argv)
 {
     long zeroPatients = 0;
     int opt, printGraph = 0, calcTime = 0, threads = 1, days = 30, useOMP = 0;
-    char *dataset = NULL, *seed = NULL;
-    char *outFilename = "simulation.csv";
+    char *dataset = NULL, *seed = NULL, *outFilename = "simulation.csv", *timeMetrics = "timeCalculations.txt";
     struct timespec start, finish;
     double elapsed;
-    FILE *outstream = stdout;
+    FILE *outstream = stdout, *timeStream;
 
     while ((opt = getopt(argc, argv, "f:s:d:t:cph")) != -1)
     {
@@ -60,16 +59,18 @@ int main(int argc, char **argv)
             break;
         case 'h': /*help*/
             printf(
-                "Usage: ./page_rank -f file -t threads [-m]\n"
+                "Usage: ./epidemic -f dataset -s seed -t threads [-m]\n"
                 "Options:\n"
                 "   -f <string>         Specifies the filename of the dataset.\n"
+                "   -s <string>         Specifies the filename of the seed.\n"
                 "   -t <int>            Determines how many threads the algorithm will use. Must be in range of [1,4].\n"
-                "   -m                  When it is used, displays the time metrics about pagerank.\n"
-                "   -g                  When -g is set, the graph structure is printed to stdout.\n"
+                "   -d <int>            Determines how many days will be simulated.\n"
+                "   -c                  When it is used, the running time calculation is displayed.\n"
+                "   -p                  When this is set, the graph structure is printed.\n"
                 "   -h                  Prints this help\n");
             return 0;
         default:
-            printf("Use [-h] for help\n");
+            printf("Inavalid flags. Use [-h] for help\n");
             return 0;
         }
     }
@@ -82,6 +83,12 @@ int main(int argc, char **argv)
 
     //srand(getpid());
     if (!(outstream = fopen(outFilename, "w+")))
+    {
+        perror("Could not open the file");
+        exit(EXIT_FAILURE);
+    }
+
+    if (!(timeStream = fopen(timeMetrics, "a")))
     {
         perror("Could not open the file");
         exit(EXIT_FAILURE);
@@ -104,9 +111,13 @@ int main(int argc, char **argv)
         Graph_print(g);
 
     if (calcTime)
+    {
         printf("Calculation Time: %fs\n", elapsed);
+        fprintf(timeStream, "%f\n", elapsed);
+    }
 
     fclose(outstream);
+    fclose(timeStream);
 
     return 0;
 }
