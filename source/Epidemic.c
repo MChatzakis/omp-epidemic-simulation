@@ -9,34 +9,30 @@
 #include "Graph.h"
 
 #define LINE_SIZE 100
-
-double TRANSMISSION = 50; /* Transmission rate is 50% */
-double MORTALITY = 34;    /* Mortality rate is 34% */
-
-int DURATION = 10; /* Virus infection duration is 10 days */
-int DAYS = 30;    /* Total days for simulation */
+#define TRANSMISSION 0.5 /* Transmission rate is 50% */
+#define MORTALITY 0.1    /* Mortality rate is 34% */
+#define DURATION 10      /* Virus infection duration is 10 days */
 
 Graph *g; /* The graph is declared globally, as every function uses it */
 
 void readFile(char *filename);
-long readSeedFile(char *filename);
 void writeCSVFIle(char *filename);
-
-void epidemic(long cases);
-
-int isGoingToDie(int day);
-int isGoingToContaminate();
+void epidemic(long cases, int threads, int days, FILE *stream);
+int isGoingToDie(int day, unsigned short *seed);
+int isGoingToContaminate(unsigned short *seed);
+long readSeedFile(char *filename);
 
 int main(int argc, char **argv)
 {
     long zeroPatients = 0;
-    int opt, printGraph = 0, calcTime = 0;
+    int opt, printGraph = 0, calcTime = 0, threads = 1, days = 30, useOMP = 0;
     char *dataset = NULL, *seed = NULL;
+    char *outFilename = "simulation.csv";
     struct timespec start, finish;
     double elapsed;
     FILE *outstream = stdout;
 
-    while ((opt = getopt(argc, argv, "f:s:d:o:tph")) != -1)
+    while ((opt = getopt(argc, argv, "f:s:d:t:cph")) != -1)
     {
         switch (opt)
         {
@@ -51,12 +47,12 @@ int main(int argc, char **argv)
             free(seed);
             break;
         case 'd': /*days*/
-            DAYS = atoi(optarg);
+            days = atoi(optarg);
             break;
-        case 'o': /*outstream*/
-
+        case 't': /*threads*/
+            threads = atoi(optarg);
             break;
-        case 't': /*time*/
+        case 'c': /*count time*/
             calcTime = 1;
             break;
         case 'p': /*print (graph)*/
@@ -83,17 +79,21 @@ int main(int argc, char **argv)
         printf("No input dataset/seed provided.\nRun using [-h] for help\n");
         return 0;
     }
-    
-    srand(getpid());
+
+    //srand(getpid());
+    if (!(outstream = fopen(outFilename, "w+")))
+    {
+        perror("Could not open the file");
+        exit(EXIT_FAILURE);
+    }
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    //epidemic(zeroPatients);
+    epidemic(zeroPatients, threads, days, outstream);
     clock_gettime(CLOCK_MONOTONIC, &finish);
-
 
     for (int k = 0; k < 10; k++)
     {
-        isGoingToDie(k);
+        //isGoingToDie(k);
         //isGoingToContaminate();
     }
 
@@ -104,7 +104,9 @@ int main(int argc, char **argv)
         Graph_print(g);
 
     if (calcTime)
-        printf("Time: %fs\n", elapsed);
+        printf("Calculation Time: %fs\n", elapsed);
+
+    fclose(outstream);
 
     return 0;
 }
@@ -192,119 +194,148 @@ void writeCSVFIle(char *filename)
 {
 }
 
-void epidemic(long cases)
+void epidemic(long cases, int threads, int days, FILE *stream)
 {
     long i, j, newCases = 0, totalCases = cases, recovered = 0, active = cases, newDeaths = 0, totalDeaths = 0;
     Node *nodes;
     Connection *conn;
+    unsigned short seed[3] = {1, 5, 9}, case_found = 0;
 
     nodes = g->nodes;
 
-    fprintf(stdout, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
+    fprintf(stream, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
 
-    for (i = 0; i < DAYS; i++)
+    for (i = 0; i < days; i++)
     {
-        //phase1
-        for (j = 0; j < g->currSize; j++)
+#pragma omp parallel num_threads(threads)
         {
-            if (!nodes[j].isDead && !nodes[j].hasAnosia && !nodes[j].isContaminated)
+#ifdef _OPENMP
+            seed[0] = omp_get_thread_num();
+            seed[1] = omp_get_num_threads();
+            seed[2] = 5;
+#endif
+
+#pragma omp for firstprivate(seed) private(j, conn, case_found) schedule(static) reduction(+ \
+                                                                                           : active)
+            for (j = 0; j < g->currSize; j++)
             {
-                conn = nodes[j].connectionsHead;
-                while (conn)
+                //printf("Threads: %d\n", omp_get_num_threads());
+                //printf("j: %ld\n", j);
+                if (!nodes[j].isDead && !nodes[j].hasAnosia && !nodes[j].isContaminated)
                 {
-                    if (!nodes[conn->indexTo].isDead && nodes[conn->indexTo].isContaminated && isGoingToContaminate())
+                    conn = nodes[j].connectionsHead;
+                    while (conn)
                     {
-                        printf("Node %ld contaminates node %ld\n", nodes[conn->indexTo].id, nodes[j].id);
-                        conn->contaminates = 1;
+                        if (!nodes[conn->indexTo].isDead && nodes[conn->indexTo].isContaminated && isGoingToContaminate(seed))
+                        {
+                            //printf("Node %ld contaminates node %ld\n", nodes[conn->indexTo].id, nodes[j].id);
+                            case_found = 1;
+                            conn->contaminates = 1;
+                        }
+                        conn = conn->next;
                     }
 
-                    conn = conn->next;
+                    if (case_found) //check this shit again..
+                    {
+                        active++;
+                        case_found = 0;
+                    }
                 }
             }
         }
 
-        //phase2
-        for (j = 0; j < g->currSize; j++)
+#pragma omp parallel num_threads(threads)
         {
-            if (nodes[j].hasAnosia || nodes[j].isDead)
-            {
-                continue;
-            }
 
-            if (nodes[j].isContaminated)
-            {
-                if (isGoingToDie(nodes[j].daysRecovering))
-                {
-                    nodes[j].isDead = 1;
-                    totalDeaths++;
-                    newDeaths++;
-                    active--;
-                    printf("Node %ld died!\n", nodes[j].id);
-                }
-                else
-                {
-                    nodes[j].daysRecovering++;
-                    if (nodes[j].daysRecovering == DURATION)
-                    {
-                        nodes[j].isContaminated = 0;
-                        nodes[j].hasAnosia = 1;
-                        recovered++;
-                        active--;
-                        printf("Node %ld got well!\n", nodes[j].id);
-                    }
-                }
-            }
-            else
-            {
-                //find if it got contaminated today
-                conn = nodes[j].connectionsHead;
-                while (conn)
-                {
-                    if (conn->contaminates == 1)
-                    {
-                        nodes[j].isContaminated = 1;
-                    }
+#ifdef _OPENMP
+            seed[0] = omp_get_thread_num();
+            seed[1] = omp_get_num_threads();
+            seed[2] = 5;
+#endif
 
-                    conn->contaminates = 0;
-                    conn = conn->next;
+#pragma omp for schedule(static) private(j, conn)                        \
+    reduction(+                                                          \
+              : totalDeaths, newDeaths, recovered, newCases, totalCases) \
+        reduction(-                                                      \
+                  : active)
+            for (j = 0; j < g->currSize; j++)
+            {
+                if (nodes[j].hasAnosia || nodes[j].isDead)
+                {
+                    continue;
                 }
 
                 if (nodes[j].isContaminated)
                 {
-                    newCases++;
-                    totalCases++;
-                    active++;
+                    if (isGoingToDie(nodes[j].daysRecovering, seed))
+                    {
+                        nodes[j].isDead = 1;
+                        totalDeaths++;
+                        newDeaths++;
+                        active--;
+                        //printf("Node %ld died!\n", nodes[j].id);
+                    }
+                    else
+                    {
+                        nodes[j].daysRecovering++;
+                        if (nodes[j].daysRecovering == DURATION)
+                        {
+                            nodes[j].isContaminated = 0;
+                            nodes[j].hasAnosia = 1;
+                            recovered++;
+                            active--;
+                            //printf("Node %ld got well!\n", nodes[j].id);
+                        }
+                    }
+                }
+                else
+                {
+                    //find if it got contaminated today
+                    conn = nodes[j].connectionsHead;
+                    while (conn)
+                    {
+                        if (conn->contaminates == 1)
+                        {
+                            nodes[j].isContaminated = 1;
+                        }
+
+                        conn->contaminates = 0;
+                        conn = conn->next;
+                    }
+
+                    if (nodes[j].isContaminated)
+                    {
+                        newCases++;
+                        totalCases++;
+                        active++;
+                    }
                 }
             }
         }
 
-        fprintf(stdout, "%ld,%ld,%ld,%ld,%ld,%ld,%ld\n", i + 1, newCases, totalCases, recovered, active, newDeaths, totalDeaths);
+        fprintf(stream, "%ld,%ld,%ld,%ld,%ld,%ld,%ld\n", i + 1, newCases, totalCases, recovered, active, newDeaths, totalDeaths);
         newCases = 0;
         newDeaths = 0;
     }
 
-    fprintf(stdout, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
+    fprintf(stream, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
 }
 
-int isGoingToContaminate()
+int isGoingToContaminate(unsigned short *seed)
 {
-    int min = 0, max = 100;
     double num;
 
-    num = (rand() % (max - min + 1)) + min;
-
-    printf("isGoingToTransmit: Generated:    %f\n", num);
+    num = erand48(seed);
+    //printf("isGoingToTransmit: Generated:    %f\n", num);
 
     return num < TRANSMISSION;
 }
 
-int isGoingToDie(int day)
+int isGoingToDie(int day, unsigned short *seed)
 {
-    double min = 0.0, max = 1.0;
-    double num;
-
-    //num = (rand() % (max - min + 1)) + min;
-    printf("isGoingToDIe: Generated: %f < %f\n", num, (1 - pow(1 - (MORTALITY), day)));
+    double num = 0;
+    num = erand48(seed);
+    //printf("isGoingToDIe: Generated: %f < %f\n", num, (1 - pow(1 - (MORTALITY), day)));
 
     return num < (1 - pow(1 - MORTALITY, day));
 }
