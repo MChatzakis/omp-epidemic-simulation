@@ -19,10 +19,15 @@ class bcolors:
 tests = 5
 days = [30, 180, 365]
 threads = [0, 1, 2, 4]
+
+datasetSize = [4039, 26518, 36692]
+datasetEdges = [88234, 65369, 367662]
+
 datasets = ["../datasets/facebook.txt",
             "../datasets/gnutella.txt", "../datasets/enron.txt"]
 seeds = ["../datasets/fbSeed.txt",
          "../datasets/gnuSeed.txt", "../datasets/enronSeed.txt"]
+
 
 # Parallelism Measuerements
 for i in range(len(datasets)):
@@ -42,7 +47,7 @@ for i in range(len(datasets)):
 
             if threads[k] == 0:
                 make = subprocess.getoutput("make nomp")
-                #print(make)
+                # print(make)
 
             for m in range(tests):
                 command = "./epidemic -f " + \
@@ -66,17 +71,24 @@ for i in range(len(datasets)):
 
             if threads[k] == 0:
                 make = subprocess.getoutput("make")
-                #print(make)
+                # print(make)
 
         #print("avgs:", avg)
-        print("Threads, Speedup (classic), Speedup (n, n-1), throughput")
+        print("Threads, Speedup (classic), Speedup (n, n-1), throughput, variance")
+
         throughput = "{:.5f}".format(days[j]/avg[0])
-        print("Thread 0   :  0.00000  , 0.00000  , ",throughput)
+        variance = "{:.5f}".format(avg[0]*datasetEdges[i])
+        
+        print("Thread 0   :  0.00000  , 0.00000  , ", throughput, " ,", variance)
+
         for y in range(1, len(avg)):
+            
             speedupClassic = "{:.5f}".format(avg[0]/avg[y])
             speedupN = "{:.5f}".format(avg[y-1]/avg[y])
             throughput = "{:.5f}".format(days[j]/avg[y])
-            print("Thread", threads[y], "  : ", speedupClassic, " ,", speedupN, " ,", throughput)
+            variance = "{:.5f}".format(avg[y]*datasetEdges[i])
 
+            print("Thread", threads[y], "  : ",
+                  speedupClassic, " ,", speedupN, " ,", throughput, " ,", variance)
 
 print("Total Runs:", len(datasets) * len(days) * tests)

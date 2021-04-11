@@ -16,7 +16,6 @@
 Graph *g; /* The graph is declared globally, as every function uses it */
 
 void readFile(char *filename);
-void writeCSVFIle(char *filename);
 void epidemic(long cases, int threads, int days, FILE *stream);
 int isGoingToDie(int day, unsigned short *seed);
 int isGoingToContaminate(unsigned short *seed);
@@ -201,10 +200,6 @@ long readSeedFile(char *filename)
     return cases;
 }
 
-void writeCSVFIle(char *filename)
-{
-}
-
 void epidemic(long cases, int threads, int days, FILE *stream)
 {
     long i, j, newCases = cases, totalCases = cases, recovered = 0, active = cases, newDeaths = 0, totalDeaths = 0;
@@ -218,6 +213,7 @@ void epidemic(long cases, int threads, int days, FILE *stream)
 
     for (i = 0; i < days; i++)
     {
+
 #pragma omp parallel num_threads(threads)
         {
 #ifdef _OPENMP
