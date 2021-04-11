@@ -5,5 +5,14 @@ Epidemic spread simulation using OpenMP
 To compile:
 ```
 cd build
-make
+make //use make nomp to compile without openMP 
 ```
+
+To configure and run use:
+```
+./epidemic  -f [inputfile]
+            -s [seedfile]
+            -d []
+```
+
+
