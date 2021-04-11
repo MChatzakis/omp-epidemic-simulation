@@ -1,15 +1,19 @@
-GRAPH = ../source/Graph.h
+GRAPH = ../source/graph/Graph.h
+GRAPH_C = ../source/graph/Graph.c
 EPID = ../source/Epidemic.c
 
 all: gcc
 
 nomp: gccn
 
-gccn: $(EPID) $(GRAPH)
-	gcc $(EPID) -lm -o epidemic 
+gccn: $(EPID) $(GRAPH) $(GRAPH_C)
+	gcc $(GRAPH_C) $(EPID) -lm -o epidemic 
 
-gcc: $(EPID) $(GRAPH)
-	gcc $(EPID) -lm -fopenmp -o epidemic 
+gcc: $(EPID) $(GRAPH) $(GRAPH_C)
+	gcc $(GRAPH_C) $(EPID) -lm -fopenmp -o epidemic 
+
+tests: script.py
+	python3 script.py
 
 clean:	
 	rm -f epidemic

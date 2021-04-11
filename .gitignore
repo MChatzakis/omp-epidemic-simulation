@@ -52,6 +52,3 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-epidemic
-simulation.csv
-

@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #include "omp.h"
-#include "Graph.h"
+#include "graph/Graph.h"
 
 #define LINE_SIZE 100
 #define TRANSMISSION 0.5 /* Transmission rate is 50% */
@@ -318,7 +318,7 @@ void epidemic(long cases, int threads, int days, FILE *stream)
                     {
                         newCases++;
                         totalCases++;
-                        active++;
+                        //active++;
                     }
                 }
             }
@@ -329,7 +329,7 @@ void epidemic(long cases, int threads, int days, FILE *stream)
         newDeaths = 0;
     }
 
-    fprintf(stream, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
+    //fprintf(stream, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
 }
 
 int isGoingToContaminate(unsigned short *seed)

@@ -1,35 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-
-#include "omp.h"
-
-typedef struct Connection
-{
-    long indexTo; //index of the node!
-    short contaminates;
-    struct Connection *next;
-} Connection;
-
-typedef struct Node
-{
-    long id;
-    
-    short isDead;
-    short isContaminated;
-    short hasAnosia;
-    short daysRecovering;
-    
-    long connections;
-    Connection *connectionsHead;
-} Node;
-
-typedef struct Graph
-{
-    long maxSize;
-    long currSize;
-    Node *nodes;
-} Graph;
+#include "Graph.h"
 
 Graph *Graph_init(unsigned int size)
 {
@@ -117,8 +86,10 @@ int Graph_setContaminated(Graph *g, long ID)
 
     nodes = g->nodes;
 
-    for(i=0; i< g->currSize; i++){
-        if(nodes[i].id == ID){
+    for (i = 0; i < g->currSize; i++)
+    {
+        if (nodes[i].id == ID)
+        {
             nodes[i].isContaminated = 1;
             return 1;
         }
@@ -191,9 +162,9 @@ void Graph_print(Graph *g)
     nodes = g->nodes;
 
     for (i = 0; i < g->currSize; i++)
-    {        
-        printf("Node #%ld:\n    ID: %ld\n    isContaminated: %d\n    Connections: %ld\n    isDead: %d\n    hasAnosia: %d\n    daysRecovering: %d\n", 
-            i, nodes[i].id, nodes[i].isContaminated, nodes[i].connections, nodes[i].isDead, nodes[i].hasAnosia, nodes[i].daysRecovering);
+    {
+        printf("Node #%ld:\n    ID: %ld\n    isContaminated: %d\n    Connections: %ld\n    isDead: %d\n    hasAnosia: %d\n    daysRecovering: %d\n",
+               i, nodes[i].id, nodes[i].isContaminated, nodes[i].connections, nodes[i].isDead, nodes[i].hasAnosia, nodes[i].daysRecovering);
 
         printf("    =>[ ");
         curr = nodes[i].connectionsHead;

@@ -42,7 +42,7 @@ for i in range(len(datasets)):
 
             if threads[k] == 0:
                 make = subprocess.getoutput("make nomp")
-                # print(make)
+                #print(make)
 
             for m in range(tests):
                 command = "./epidemic -f " + \
@@ -66,7 +66,7 @@ for i in range(len(datasets)):
 
             if threads[k] == 0:
                 make = subprocess.getoutput("make")
-                # print(make)
+                #print(make)
 
         #print("avgs:", avg)
         print("Threads, Speedup (classic), Speedup (n, n-1), throughput")
