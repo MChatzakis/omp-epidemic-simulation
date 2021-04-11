@@ -3,6 +3,7 @@ import re
 import statistics
 import os
 
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -14,6 +15,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
 tests = 5
 days = [30, 180, 365]
 threads = [1, 2, 4]
@@ -24,13 +26,18 @@ seeds = ["../datasets/fbSeed.txt",
 
 avg = []
 
+# Parallelism Measuerements
 for i in range(len(datasets)):
-    print("---------------------------------------------------")
-    print(bcolors.OKBLUE, "Dataset", "\"",datasets[i],"\"", bcolors.ENDC)
+
+    print("---------------------------------------------------------")
+    print("Dataset system path", "\"",datasets[i],"\"")
+    
     for j in range(len(days)):
+        
         print("Days:", days[j])
+        
         for k in range(len(threads)):
-            #print("Calculating average time for ", threads[k], "threads")
+
             for m in range(tests):
                 command = "./epidemic -f " + \
                     datasets[i] + " -s " + seeds[i] + " -d " + \
@@ -38,17 +45,16 @@ for i in range(len(datasets)):
                 # print(command)
                 out = subprocess.getoutput(command)
                 # print(out)
-            # read file
+
             values = []
             with open('timeCalculations.txt', 'r+') as f:
                 for line in f:
-                    if line:  # avoid blank lines
+                    if line:
                         values.append(float(line.strip()))
+
             avrg = "{:.5f}".format(sum(values) / len(values))
-            print("--Thread(s) #",threads[k], values, "=> avg: ", avrg,"s")
-            # print(bcolors.OKGREEN, "Average time for ", threads[k], "thread(s) is", , bcolors.ENDC)
+            print("--Thread(s) #", threads[k], values, "=> avg: ", avrg, "s")
+            
             os.remove("timeCalculations.txt")
-    #print("---------------------------------------------------")
 
-
-print("Total Runs:", len(datasets) * len(days) *len(times))    
+print("Total Runs:", len(datasets) * len(days) * len(tests))

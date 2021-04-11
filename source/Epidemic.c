@@ -207,7 +207,7 @@ void writeCSVFIle(char *filename)
 
 void epidemic(long cases, int threads, int days, FILE *stream)
 {
-    long i, j, newCases = 0, totalCases = cases, recovered = 0, active = cases, newDeaths = 0, totalDeaths = 0;
+    long i, j, newCases = cases, totalCases = cases, recovered = 0, active = cases, newDeaths = 0, totalDeaths = 0;
     Node *nodes;
     Connection *conn;
     unsigned short seed[3] = {1, 5, 9}, case_found = 0;
