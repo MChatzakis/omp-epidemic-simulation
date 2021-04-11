@@ -10,7 +10,7 @@
 
 #define LINE_SIZE 100
 #define TRANSMISSION 0.5 /* Transmission rate is 50% */
-#define MORTALITY 0.1    /* Mortality rate is 34% */
+#define MORTALITY 0.34    /* Mortality rate is 34% */
 #define DURATION 10      /* Virus infection duration is 10 days */
 
 Graph *g; /* The graph is declared globally, as every function uses it */
