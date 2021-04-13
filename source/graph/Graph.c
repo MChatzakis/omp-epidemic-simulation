@@ -212,4 +212,6 @@ void Graph_free(Graph *g)
 
     free(nodes);
     nodes = NULL;
+
+    free(g);
 }

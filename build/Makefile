@@ -13,6 +13,7 @@ gcc: $(EPID) $(GRAPH) $(GRAPH_C)
 	gcc $(GRAPH_C) $(EPID) -lm -fopenmp -o epidemic 
 
 tests: script.py
+	clear
 	python3 script.py
 
 clean:	

@@ -10,16 +10,17 @@
 
 #define LINE_SIZE 100
 #define TRANSMISSION 0.5 /* Transmission rate is 50% */
-#define MORTALITY 0.34    /* Mortality rate is 34% */
+#define MORTALITY 0.0034 /* Mortality rate is 0.34% */
 #define DURATION 10      /* Virus infection duration is 10 days */
 
 Graph *g; /* The graph is declared globally, as every function uses it */
 
-void readFile(char *filename);
 void epidemic(long cases, int threads, int days, FILE *stream);
+void readFile(char *filename);
+long readSeedFile(char *filename);
+
 int isGoingToDie(int day, unsigned short *seed);
 int isGoingToContaminate(unsigned short *seed);
-long readSeedFile(char *filename);
 
 int main(int argc, char **argv)
 {
@@ -80,7 +81,6 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    //srand(getpid());
     if (!(outstream = fopen(outFilename, "w+")))
     {
         perror("Could not open the file");
@@ -97,26 +97,21 @@ int main(int argc, char **argv)
     epidemic(zeroPatients, threads, days, outstream);
     clock_gettime(CLOCK_MONOTONIC, &finish);
 
-    for (int k = 0; k < 10; k++)
-    {
-        //isGoingToDie(k);
-        //isGoingToContaminate();
-    }
-
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+    fprintf(timeStream, "%f\n", elapsed);
 
     if (printGraph)
         Graph_print(g);
 
     if (calcTime)
-    {
         printf("Calculation Time: %fs\n", elapsed);
-        fprintf(timeStream, "%f\n", elapsed);
-    }
 
     fclose(outstream);
     fclose(timeStream);
+
+    Graph_free(g);
+    g = NULL;
 
     return 0;
 }
@@ -208,58 +203,63 @@ void epidemic(long cases, int threads, int days, FILE *stream)
     unsigned short seed[3] = {1, 5, 9}, case_found = 0;
 
     nodes = g->nodes;
-
     fprintf(stream, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
 
     for (i = 0; i < days; i++)
     {
-
-#pragma omp parallel num_threads(threads)
+        /* Start of parallel region: g, seed and nodes are shared among the threads */
+#pragma omp parallel num_threads(threads) 
+//shared(g, nodes, seed)
         {
+            /* As rand() is not thread-safe, the random number generator uses erand48(seed) with custom seed */
 #ifdef _OPENMP
             seed[0] = omp_get_thread_num();
             seed[1] = omp_get_num_threads();
             seed[2] = 5;
 #endif
-
-#pragma omp for firstprivate(seed) private(j, conn, case_found) schedule(static) reduction(+ \
+            /* Phase 1*/
+#pragma omp for firstprivate(seed, case_found) private(j, conn) schedule(static) reduction(+ \
                                                                                            : active)
             for (j = 0; j < g->currSize; j++)
             {
-                //printf("Threads: %d\n", omp_get_num_threads());
-                //printf("j: %ld\n", j);
+                //printf("case found = %d\n", case_found);
+
+                /* For every no-yet contaminated, alive node, we check if he will get contaminated during the day */
                 if (!nodes[j].isDead && !nodes[j].hasAnosia && !nodes[j].isContaminated)
                 {
+                    /* Iterating the connection list to find out if any neighbor is contaminated */
                     conn = nodes[j].connectionsHead;
                     while (conn)
                     {
                         if (!nodes[conn->indexTo].isDead && nodes[conn->indexTo].isContaminated && isGoingToContaminate(seed))
                         {
+                            /* In this case, node[j] gets contaminated */
                             //printf("Node %ld contaminates node %ld\n", nodes[conn->indexTo].id, nodes[j].id);
-                            case_found = 1;
-                            conn->contaminates = 1;
+                            case_found = 1;         /* Flag to add up active cases */
+                            conn->contaminates = 1; /* This memory address is written only by the current thread, no data race */
                         }
                         conn = conn->next;
                     }
-
-                    if (case_found) //check this shit again..
+                    //printf("case found = %d\n", case_found);
+                    /* If node[j] gets contaminated, the active cases are increased */
+                    if (case_found)
                     {
+                        //printf("Node %ld got contaminated, active++\n", nodes[j].id);
                         active++;
                         case_found = 0;
                     }
                 }
             }
-        }
+            /* Implicit (required) barrier between the two phases */
 
-#pragma omp parallel num_threads(threads)
-        {
-
+            /* As rand() is not thread-safe, the random number generator uses erand48(seed) with new custom seed */
 #ifdef _OPENMP
-            seed[0] = omp_get_thread_num();
-            seed[1] = omp_get_num_threads();
-            seed[2] = 5;
+            seed[0] = omp_get_num_threads();
+            seed[1] = omp_get_thread_num();
+            seed[2] = 3;
 #endif
 
+            /* Phase 2 */
 #pragma omp for schedule(static) private(j, conn)                        \
     reduction(+                                                          \
               : totalDeaths, newDeaths, recovered, newCases, totalCases) \
@@ -267,13 +267,16 @@ void epidemic(long cases, int threads, int days, FILE *stream)
                   : active)
             for (j = 0; j < g->currSize; j++)
             {
+                /* We dont care for immune or dead nodes */
                 if (nodes[j].hasAnosia || nodes[j].isDead)
                 {
                     continue;
                 }
 
+                /* Actions for contaminated nodes */
                 if (nodes[j].isContaminated)
                 {
+                    /* If the current node is going to die, the corresponding counters are updated */
                     if (isGoingToDie(nodes[j].daysRecovering, seed))
                     {
                         nodes[j].isDead = 1;
@@ -284,65 +287,93 @@ void epidemic(long cases, int threads, int days, FILE *stream)
                     }
                     else
                     {
+                        /* If the current node survives this day, the counter is incremented */
                         nodes[j].daysRecovering++;
+                        /* In case the virus duration has passed, the current node survives and becomes immune */
                         if (nodes[j].daysRecovering == DURATION)
                         {
                             nodes[j].isContaminated = 0;
-                            nodes[j].hasAnosia = 1;
+                            nodes[j].hasAnosia = 1; /* Immune nodes cannot get ill again */
                             recovered++;
                             active--;
                             //printf("Node %ld got well!\n", nodes[j].id);
                         }
                     }
                 }
+                /* Actions for not contaminated nodes */
                 else
                 {
-                    //find if it got contaminated today
+                    /* Traversing the neighbour list to find out if the current node got contamited during phase 1 */
                     conn = nodes[j].connectionsHead;
                     while (conn)
                     {
+                        /* Reading the data written in phase 1 */
                         if (conn->contaminates == 1)
                         {
-                            nodes[j].isContaminated = 1;
+
+                            nodes[j].isContaminated = 1; /* Contamination Case */
                         }
 
-                        conn->contaminates = 0;
+                        conn->contaminates = 0; /* Reseting the flag for the next days */
                         conn = conn->next;
                     }
 
+                    /* If the node got contaminted, increase the counters */
                     if (nodes[j].isContaminated)
                     {
+                        //printf("As node %ld gets contaminated, newCases++ and totalCases++\n", nodes[j].id);
                         newCases++;
                         totalCases++;
-                        //active++;
                     }
                 }
             }
+            /* Implicit (required) barrier */
         }
+        /* Implicit (required) barrier */
 
+        /* Update the output file and reset the counters: This results in some overhead addition but its inevitable */
         fprintf(stream, "%ld,%ld,%ld,%ld,%ld,%ld,%ld\n", i + 1, newCases, totalCases, recovered, active, newDeaths, totalDeaths);
         newCases = 0;
         newDeaths = 0;
-    }
 
-    //fprintf(stream, "Day,NewCases,TotalCases,Recovered,Active,NewDeaths,TotalDeaths\n");
+        /* At this point, current day calculations are done */
+    }
 }
 
 int isGoingToContaminate(unsigned short *seed)
 {
+    /* 
+        Generating propability: To simulate the coin flip propabilistic model using c and erand() the tactic is:
+        Generate a random double number between [0 and 1]
+        If the number < propability, the node contaminates
+    */
     double num;
 
     num = erand48(seed);
     //printf("isGoingToTransmit: Generated:    %f\n", num);
 
+    /* Returning true means that the node will contaminate the neighbour*/
     return num < TRANSMISSION;
 }
 
 int isGoingToDie(int day, unsigned short *seed)
 {
-    double num = 0;
+    /* 
+        Generating propability: To simulate the coin flip propabilistic model using c and erand() the tactic is:
+        Generate a random double number between [0 and 1]
+        If the number < propability, the node contaminates
+    */
+    double num;
     num = erand48(seed);
     //printf("isGoingToDIe: Generated: %f < %f\n", num, (1 - pow(1 - (MORTALITY), day)));
 
+    /*
+        Crucial point: For an epidemic of DURATIONS days and MORTALITY death rate, 
+        the propability for an infected node to die during the day x where x in [0, DURATION]
+        is 1 - (1 - M)^x.
+        eg. Day 0 => p = 0 (he is not going to die)
+        eg. Day 1 => p = M (MORTALITY rate)
+        eg. Day 2 => p = 1 - (1 - M)^2 => p gets bigger over days
+    */
     return num < (1 - pow(1 - MORTALITY, day));
 }
