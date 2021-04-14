@@ -18,7 +18,6 @@ Graph *g; /* The graph is declared globally, as every function uses it */
 void epidemic(long cases, int threads, int days, FILE *stream);
 void readFile(char *filename);
 long readSeedFile(char *filename);
-
 int isGoingToDie(int day, unsigned short *seed);
 int isGoingToContaminate(unsigned short *seed);
 
@@ -208,8 +207,8 @@ void epidemic(long cases, int threads, int days, FILE *stream)
     for (i = 0; i < days; i++)
     {
         /* Start of parallel region: g, seed and nodes are shared among the threads */
-#pragma omp parallel num_threads(threads) 
-//shared(g, nodes, seed)
+#pragma omp parallel num_threads(threads)
+        //shared(g, nodes, seed)
         {
             /* As rand() is not thread-safe, the random number generator uses erand48(seed) with custom seed */
 #ifdef _OPENMP
