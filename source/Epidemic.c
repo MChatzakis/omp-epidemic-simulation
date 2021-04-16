@@ -259,7 +259,7 @@ void epidemic(long cases, int threads, int days, FILE *stream)
 #endif
 
             /* Phase 2 */
-#pragma omp for schedule(static) private(j, conn)                        \
+#pragma omp for schedule(static) private(j, conn) firstprivate(seed)     \
     reduction(+                                                          \
               : totalDeaths, newDeaths, recovered, newCases, totalCases) \
         reduction(-                                                      \
